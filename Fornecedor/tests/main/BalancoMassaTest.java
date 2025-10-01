@@ -1,60 +1,71 @@
 package main;
 
 import static org.junit.Assert.*;
-
 import java.util.Arrays;
 import java.util.List;
-
 import org.junit.Test;
+
+import main.java.br.com.fornecedor.balanco.model.BalancoMassa;
+import main.java.br.com.fornecedor.balanco.model.Lote;
+import main.java.br.com.fornecedor.balanco.model.interfaces.IBalancoMassa;
+import main.java.br.com.fornecedor.balanco.model.interfaces.ILoteRepository;
+import main.java.br.com.fornecedor.balanco.repository.LoteRepository;
+import main.java.br.com.fornecedor.balanco.service.BalancoMassaService;
 
 public class BalancoMassaTest {
 
-	@Test
-	public void testeCalculoNormalBalancoMassa() {
+    @Test
+    public void testeCalculoNormalBalancoMassa() {
+        IBalancoMassa balanco = new BalancoMassa(1000, 900, 50);
+        balanco.calcula();
+        assertEquals(50, balanco.getDesvio());
+        assertEquals(5.0, balanco.getDesvioPerc(), 0.001);
+    }
 
-		BalancoMassa balanco= new BalancoMassa(1000,900,50,null);
-		balanco.CalculaBalancoMassa();
-		assertEquals(50, balanco.getDesvio());
-		assertEquals(5.0, balanco.getDesvioPerc(), 0.001);
-	}
+    @Test
+    public void testeCalculoDentroLimiteToleravel() {
+        IBalancoMassa balanco = new BalancoMassa(1000, 950, 30);
+        balanco.setLimiteToleravel(5);
+        balanco.calcula();
+        assertEquals(20, balanco.getDesvio()); 
+        assertEquals(2.0, balanco.getDesvioPerc(), 0.001);
+        assertFalse(balanco.alerta());
+    }
 
-	@Test
-	public void testeCalculoDentroLimiteToleravel() {
+    @Test
+    public void testeCalculoAcimaLimiteToleravel() {
+        IBalancoMassa balanco = new BalancoMassa(1000, 840, 100);
+        balanco.setLimiteToleravel(5);
+        balanco.calcula();
+        assertEquals(60, balanco.getDesvio());
+        assertEquals(6.0, balanco.getDesvioPerc(), 0.001);
+        assertTrue(balanco.alerta());
+    }
 
-		BalancoMassa balanco= new BalancoMassa(1000,950,30,null);
-		balanco.CalculaBalancoMassa();
-		assertEquals(2.0, balanco.getDesvioPerc(), 0.001);
-	}
+    @Test
+    public void testeDadosObrigatoriosAusentesOuZerados() {
+        IBalancoMassa balanco = new BalancoMassa(0, 0, 0);
+        try {
+            balanco.calcula();
+            fail("Deveria lançar IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            assertEquals("Todos os campos obrigatórios devem ser preenchidos corretamente", e.getMessage());
+        }
+    }
 
-	@Test
-	public void testeCalculoAcimaLimiteToleravel() {
-		BalancoMassa balanco= new BalancoMassa(1000,840,100,null);
-		balanco.CalculaBalancoMassa();
-		assertEquals(6.0, balanco.getDesvioPerc(), 0.001);
-		assertTrue(balanco.alerta());
-	}
+    @Test
+    public void testeCalculoPorLote() {
+        List<Lote> lotes = Arrays.asList(
+            new Lote("XYZ", 1000, 950, 30),
+            new Lote("ABC", 1200, 1100, 50)
+        );
 
-	@Test
-	public void testeDadosObrigatoriosAusentesOuZerados() {
-		BalancoMassa balanco = new BalancoMassa(0,0,0,null);
-		Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-			balanco.CalculaBalancoMassa();
-		});
-		assertEquals("Todos os campos obrigatórios devem ser preenchidos corretamente", exception.getMessage());
-	}
+        ILoteRepository repo = new LoteRepository(lotes);
+        BalancoMassaService service = new BalancoMassaService(repo);
 
-	@Test
-	public void testeCalculoPorLote() {
-		List<Lote> lotes = Arrays.asList(
-				new Lote("XYZ", 1000, 950, 30),
-				new Lote("ABC", 1200, 1100, 50));
-
-
-		BalancoMassa balanco = new BalancoMassa(0,0,0,lotes);
-		BalancoMassa resultado = balanco.CalculaBalancoMassaPorLote("XYZ", 5);
-
-		assertEquals(20, resultado.getDesvio());
-		assertEquals(2.0, resultado.getDesvioPerc(), 0.01);
-		assertFalse(resultado.alerta());
-	}
+        IBalancoMassa resultado = service.calculaPorLote("XYZ", 5);
+        assertEquals(20, resultado.getDesvio());
+        assertEquals(2.0, resultado.getDesvioPerc(), 0.01);
+        assertFalse(resultado.alerta());
+    }
 }

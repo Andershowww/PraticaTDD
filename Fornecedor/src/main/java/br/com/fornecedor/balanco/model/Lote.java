@@ -1,4 +1,4 @@
-package main;
+package main.java.br.com.fornecedor.balanco.model;
 
 public class Lote {
 	private String id;
